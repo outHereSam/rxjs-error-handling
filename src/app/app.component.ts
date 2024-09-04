@@ -4,6 +4,7 @@ import { Product } from './interfaces/IProduct';
 import { products } from '../assets/data';
 import {
   catchError,
+  count,
   delay,
   finalize,
   from,
@@ -40,10 +41,27 @@ export class AppComponent {
       : throwError(() => new Error('Http request failed'))
           .pipe(delay(2000))
           .pipe(
-            retry(3),
+            tap(() => console.log('Initial request started')),
+            retry({
+              count: 3,
+              resetOnSuccess: true,
+              delay: (error, retryCount) => {
+                console.log(
+                  `Retry attempt #${retryCount} after error:`,
+                  error.message
+                );
+                return of(error).pipe(delay(1000)); // Delay before retrying
+              },
+            }),
+            tap({
+              next: (data) =>
+                console.log('Received successful response:', data), // Log successful responses
+              error: (error) =>
+                console.error('Error encountered:', error.message), // Log errors
+            }),
             catchError((error) => {
               if (Math.random() > 0.5) {
-                console.log('Retries exhausted, providing fallback data.');
+                console.warn('Retries exhausted, providing fallback data.');
                 return of([
                   {
                     id: 0,
